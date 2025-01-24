@@ -68,53 +68,85 @@ class SearchAI:
     else:
       return self.search_endpoint
 
-  """
-  Receive Django request and index. Return the prompt.
-  """
-  def query(self, request, index):
-    badMethod = self.checkMethod(request.method)
-    if badMethod:
-      return badMethod
-
-    query = self.getQuery(request.body)
-    responseData = self.getResults(query, index)
-    return responseData
+  def test(self, query, index):
+    return {"query": query, "summary": "this is a systems searchai test", "results": [
+      'endpoint: '+self.endpoint(),
+      'api_key: '+self.api_key(),
+      'searchVersion: '+self.searchVersion(),
+      'contentType: '+self.contentType(),
+      'url: '+self.url(),
+      'headers: '+str(self.headers()),
+      'testConnect: '+str(self.runQuery(query, index))
+    ]}
 
   """
   Parse Django request for query.
   """
-  def getQuery(self, requestBody, index='query'):
+  def getQuery(self, request, index='query'):
     responseData = {}
+    badMethod = self.checkMethod(request.method)
+    if badMethod:
+      return badMethod
 
     try:
-      responseData['code'] = 200
-      query = json.loads(requestBody)
+      query = json.loads(request.body)
       responseData['query'] = query.get(index, "")
+      responseData['code'] = 200
 
     except Exception as e:
       responseData['code'] = 500
-      responseData[type(e).__name__] = str(e)
       responseData['context'] = self.getContext()
+      responseData['response'] = [{f"{type(e).__name__}":f"{str(e)}"}]
     return responseData
   
   """
   Send a prompt to Search and return the response.
   """
-  def getResults (self, query, index):
+  def runQuery (self, query, index):
     responseData = {}
+    responseData['query'] = query
 
     try:
-      responseData['query'] = query['query']
       payload = {'search':responseData['query']}
-
       received = requests.post(self.url(index), headers=self.headers(), json=payload)
       received.raise_for_status()
 
       if received.status_code:
         responseData['code'] = received.status_code
-
-      responseData['response'] = received.json()
       
+      response = self.parseQueryResult(received)
+      
+      responseData['context'] =  response.get("context")
+      responseData['response'] =  response.get("documents")
+
+    except Exception as e:
+      responseData['code'] = 500
+      responseData['context'] = self.getContext()
+      responseData['response'] = [{f"{type(e).__name__}":f"{str(e)}"}]
+
+    return responseData
+  
+  """
+  Receives result and returns parsed data
+  """
+  def parseQueryResult (self, result):
+    responseData = {}
+    try:
+      response = result.json()
+      if response.get('@odata.context'):
+        responseData['context'] = response.get('@odata.context')
+
+      if response.get('value'):
+        responseData['documents'] = [
+        {
+          "id": doc.get("id"),
+          "title": doc.get("title"),
+          "content": doc.get("content"),
+          "score": doc.get("@search.score")
+        }
+        for doc in response.get('value')
+      ]
+
     except Exception as e:
       responseData[type(e).__name__] = str(e)
       responseData['context'] = self.getContext()

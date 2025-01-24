@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Cognitive Search Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: -webkit-fill-available;
+            height: 1.25rem;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #0078d4;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #005ea6;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .result {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .result h3 {
+            margin: 0 0 5px;
+        }
+
+        .result p {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Search Demo</h1>
+        <input type="text" id="query" placeholder="Enter your query...">
+        <button id="search-button">Search</button>
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+      const searchButton = document.getElementById('search-button');
+      const resultsDiv = document.getElementById('results');
+  
+      searchButton.addEventListener('click', () => {
+          const query = document.getElementById('query').value;
+          if (!query) {
+              alert('Please enter a query');
+              return;
+          }
+  
+          fetch('http://localhost:8000/api/webchat/', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ query: query })
+          })
+          .then(response => response.json())
+          .then(data => {
+              resultsDiv.innerHTML = '';
+  
+              if (data.error) {
+                resultsDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+                return;
+              }
+  
+              // Display the summary
+              const summaryDiv = document.createElement('div');
+              summaryDiv.innerHTML = `<h2>Summary</h2><p>${data.summary}</p>`;
+              resultsDiv.appendChild(summaryDiv);
+  
+              // Display the search results with confidence scores
+              const resultsList = document.createElement('ul');
+              resultsList.innerHTML = '<h2>Search Results</h2>';
+              console.log(data);
+              data.results.forEach(result => {
+                  const listItem = document.createElement('li');
+                  listItem.innerHTML = 
+                  `
+                      <strong>${result.title || "No Title"}</strong>: ${result.content || "No Content"}
+                      <br/><em>Confidence Score:</em> ${result.score.toFixed(2) || "not sure..."}
+                  `;
+                  resultsList.appendChild(listItem);
+              });
+              resultsDiv.appendChild(resultsList);
+          })
+          .catch(error => {
+              console.error('Error:', error);
+              resultsDiv.innerHTML = `<p>${error}</p>`;
+          });
+      });
+    </script>
+  
+</body>
+</html>

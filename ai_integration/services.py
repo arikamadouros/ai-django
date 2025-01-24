@@ -1,14 +1,15 @@
 from django.http import JsonResponse
 from openai_integration.services import *
 from searchai_integration.services import *
+import os
+appname = os.path.dirname(os.path.abspath(__file__))
 
 def get_documents_results(request, index_name):
     searchAI = SearchAI()
     query = searchAI.getQuery(request.body)['query']
-
     
     # Extract the search results from the response
-    search_results = searchAI.query(request, index_name)
+    search_results = searchAI.runQuery(query, index_name)
     response_data = search_results.get("response", {})
     documents = response_data.get("value", [])
 
